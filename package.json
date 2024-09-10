@@ -1,0 +1,29 @@
+{
+    "name": "go-common",
+    "version": "1.0.0",
+    "main": "index.js",
+    "repository": "git@github.com:madevara24/go-common.git",
+    "author": "Devara <adityadevara91@gmail.com>",
+    "license": "MIT",
+    "devDependencies": {
+      "@commitlint/cli": "^17.0.3",
+      "@commitlint/config-conventional": "^17.0.3",
+      "commitizen": "^4.2.5",
+      "commitlint-config-cz": "^0.13.3",
+      "cz-conventional-changelog": "^3.3.0",
+      "cz-customizable": "^6.3.0",
+      "husky": "^8.0.1"
+    },
+    "scripts": {
+      "commit": "git-cz"
+    },
+    "config": {
+      "commitizen": {
+        "path": "node_modules/cz-conventional-changelog"
+      }
+    },
+    "dependencies": {
+      "yarn": "^1.22.19"
+    }
+  }
+  
