@@ -2,9 +2,10 @@ package response
 
 import (
 	"fmt"
-	"go-common/constant"
-	"go-common/errors"
 	"net/http"
+
+	"github.com/madevara24/go-common/constant"
+	"github.com/madevara24/go-common/errors"
 
 	"github.com/gin-gonic/gin"
 )

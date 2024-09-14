@@ -1,4 +1,4 @@
-module go-common
+module github.com/madevara24/go-common
 
 go 1.23
 

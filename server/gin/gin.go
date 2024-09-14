@@ -2,11 +2,12 @@ package gin
 
 import (
 	"fmt"
-	"go-common/errors"
-	"go-common/response"
-	"go-common/server"
 	"net/http"
 	"strings"
+
+	"github.com/madevara24/go-common/errors"
+	"github.com/madevara24/go-common/response"
+	"github.com/madevara24/go-common/server"
 
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-contrib/requestid"
