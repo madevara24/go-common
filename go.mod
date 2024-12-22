@@ -2,11 +2,19 @@ module github.com/madevara24/go-common
 
 go 1.23
 
-require github.com/gin-contrib/gzip v1.0.1
+require (
+	github.com/gin-contrib/gzip v1.0.1
+	github.com/gogo/protobuf v1.3.2
+	github.com/spf13/cast v1.7.1
+	go.opentelemetry.io/otel/trace v1.33.0
+	go.uber.org/zap v1.27.0
+)
 
 require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/rs/cors v1.11.0 // indirect
+	go.opentelemetry.io/otel v1.33.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 )
 
 require (
@@ -36,7 +44,7 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	golang.org/x/arch v0.9.0 // indirect
 	golang.org/x/crypto v0.26.0 // indirect
-	golang.org/x/net v0.28.0 // indirect
+	golang.org/x/net v0.28.0
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
