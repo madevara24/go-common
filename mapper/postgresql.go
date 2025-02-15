@@ -123,6 +123,37 @@ func (m *PostgresMapper) InsertMany(ctx context.Context, entities []Entity, tabl
 	return query, bulkData, nil
 }
 
+func (m *PostgresMapper) Update(ctx context.Context, entity Entity, tableName string) (string, []interface{}, error) {
+	var key interface{}
+	var updateQuery, match string
+	data := make([]interface{}, 0)
+	val := reflect.Indirect(reflect.ValueOf(entity))
+	//Build the query
+	for i := 0; i < val.Type().NumField(); i++ {
+		field := val.Type().Field(i)
+		if field.Tag.Get("updatable") == "true" { //Only if updatable true
+			fieldName := m.getFieldName(field.Tag, true)
+			if updateQuery == "" {
+				updateQuery = "UPDATE " + tableName + " SET " + fieldName + "=?"
+			} else {
+				updateQuery = updateQuery + "," + fieldName + "=?"
+			}
+
+			temp := m.formatData(val.Field(i).Interface())
+			data = append(data, temp)
+
+		} else if field.Tag.Get("primarykey") == "true" {
+			fieldName := m.getFieldName(field.Tag, true)
+			match = " WHERE " + fieldName + "=?"
+			key = m.formatData(val.Field(i).Interface())
+		}
+	}
+	data = append(data, key)
+	updateQuery = updateQuery + match
+
+	return updateQuery, data, nil
+}
+
 func (m *PostgresMapper) getFieldName(tag reflect.StructTag, quoted bool) string {
 	fieldName := strings.Split(tag.Get("json"), ",")[0]
 	if tag.Get("db") != "" {
