@@ -21,18 +21,60 @@ func NewPostgresMapper() IMapper {
 	return &PostgresMapper{}
 }
 
+func (m *PostgresMapper) Insert(ctx context.Context, entity Entity, tableName string) (string, []interface{}, error) {
+	var primaryKey string
+	var insertQuery, insertValues string
+	data := make([]interface{}, 0)
+	val := reflect.Indirect(reflect.ValueOf(entity))
+
+	// MAKE INSERT QUERY
+	for i := 0; i < val.Type().NumField(); i++ {
+		field := val.Type().Field(i)
+		if field.Tag.Get("primarykey") == "true" {
+			primaryKey = m.getFieldName(field.Tag, true)
+		}
+		if field.Tag.Get("insertable") != "false" {
+			temp := m.formatData(val.FieldByName(field.Name).Interface())
+			isZeroValue := val.Field(i).IsZero()
+			isDBDefault := field.Tag.Get("hasdbdefault") == "true"
+			if isDBDefault && isZeroValue {
+				continue
+			}
+			fieldName := m.getFieldName(field.Tag, true)
+			if insertQuery == "" {
+				insertQuery = "INSERT INTO " + tableName + " (" + fieldName
+				insertValues = ") VALUES (?"
+			} else {
+				insertQuery = insertQuery + "," + fieldName
+				insertValues = insertValues + ",?"
+			}
+
+			data = append(data, temp)
+		}
+	}
+
+	insertQuery = insertQuery + insertValues + ")"
+	query := insertQuery
+
+	if primaryKey != "" {
+		query = insertQuery + " RETURNING " + tableName + "." + primaryKey
+	}
+
+	return query, data, nil
+}
+
 func (m *PostgresMapper) InsertMany(ctx context.Context, entities []Entity, tableName string) (string, []interface{}, error) {
 	if len(entities) == 0 {
 		return "", nil, fmt.Errorf("no entities to insert")
 	}
 
-	// Get field information from first entity
+	// MAKE BASE INSERT QUERY
 	var primaryKey string
 	fields := make([]string, 0)
 	val := reflect.Indirect(reflect.ValueOf(entities[0]))
-	for j := 0; j < val.Type().NumField(); j++ {
-		field := val.Type().Field(j)
-		if j == 0 && field.Tag.Get("primarykey") == "true" {
+	for i := 0; i < val.Type().NumField(); i++ {
+		field := val.Type().Field(i)
+		if i == 0 && field.Tag.Get("primarykey") == "true" {
 			primaryKey = m.getFieldName(field.Tag, true)
 		}
 		if field.Tag.Get("insertable") != "false" {
@@ -44,16 +86,16 @@ func (m *PostgresMapper) InsertMany(ctx context.Context, entities []Entity, tabl
 	values := make([]string, len(entities))
 	bulkData := make([]interface{}, 0)
 
-	// Process each entity sequentially
+	// PROCESS FIELDS
 	for idx, entity := range entities {
 		val := reflect.Indirect(reflect.ValueOf(entity))
 		singleValue := make([]string, 0, val.Type().NumField())
 		paramStart := idx*val.Type().NumField() + 1
 
-		for j := 0; j < val.Type().NumField(); j++ {
-			field := val.Type().Field(j)
+		for i := 0; i < val.Type().NumField(); i++ {
+			field := val.Type().Field(i)
 			if field.Tag.Get("insertable") != "false" {
-				isZeroValue := val.Field(j).IsZero()
+				isZeroValue := val.Field(i).IsZero()
 				isDBDefault := field.Tag.Get("hasdbdefault") == "true"
 
 				if isDBDefault && isZeroValue {
@@ -61,7 +103,7 @@ func (m *PostgresMapper) InsertMany(ctx context.Context, entities []Entity, tabl
 				} else {
 					singleValue = append(singleValue, fmt.Sprintf("$%d", paramStart))
 					paramStart++
-					bulkData = append(bulkData, m.formatData(val.Field(j).Interface()))
+					bulkData = append(bulkData, m.formatData(val.Field(i).Interface()))
 				}
 			}
 		}
