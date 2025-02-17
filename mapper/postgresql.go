@@ -154,6 +154,74 @@ func (m *PostgresMapper) Update(ctx context.Context, entity Entity, tableName st
 	return updateQuery, data, nil
 }
 
+func (m *PostgresMapper) UpdateMany(ctx context.Context, entities []Entity, tableName string) (string, []interface{}, error) {
+	if len(entities) == 0 {
+		return "", nil, fmt.Errorf("no entities to update")
+	}
+
+	var updateQuery string
+	var valuesString string
+	fields := make([]string, 0)
+	primaryKeys := make([]string, 0)
+	data := make([]interface{}, 0)
+
+	updateQuery = "UPDATE " + tableName + " SET "
+
+	for i, entity := range entities {
+		val := reflect.Indirect(reflect.ValueOf(entity))
+		var rowData []interface{}
+		var rowPrimaryKey []string
+
+		for j := 0; j < val.Type().NumField(); j++ {
+			field := val.Type().Field(j)
+			fieldTag := field.Tag
+			fieldName := m.getFieldName(fieldTag, false)
+
+			if fieldTag.Get("primarykey") == "true" {
+				rowPrimaryKey = append(rowPrimaryKey,
+					fmt.Sprintf("%s.%s = UP.%s", tableName, fieldName, fieldName))
+			}
+
+			if fieldTag.Get("updatable") == "true" || fieldTag.Get("primarykey") == "true" {
+
+				// USE FIRST INDEX FOR UPDATE CLAUSE
+				if i == 0 {
+					if len(fields) > 0 {
+						updateQuery += ","
+					}
+					updateQuery += fieldName + "=UP." + fieldName
+					fields = append(fields, fieldName)
+				}
+
+				if valuesString == "" {
+					valuesString = "(?"
+				} else {
+					valuesString += ",?"
+				}
+				valuesString += m.getCastType(field)
+
+				temp := m.formatData(val.Field(j).Interface())
+				rowData = append(rowData, temp)
+			}
+		}
+
+		primaryKeys = append(primaryKeys, rowPrimaryKey...)
+		data = append(data, rowData...)
+
+		// Add row separator for VALUES clause
+		if i < len(entities)-1 {
+			valuesString += "),\n\t\t("
+		} else {
+			valuesString += ")"
+		}
+	}
+
+	query := updateQuery + " FROM (\n\tVALUES\n\t\t" + valuesString + "\n) AS UP (" +
+		strings.Join(fields, ",") + ")\n" + "WHERE " + strings.Join(primaryKeys, " AND ")
+
+	return query, data, nil
+}
+
 func (m *PostgresMapper) getFieldName(tag reflect.StructTag, quoted bool) string {
 	fieldName := strings.Split(tag.Get("json"), ",")[0]
 	if tag.Get("db") != "" {
@@ -184,4 +252,35 @@ func (m *PostgresMapper) formatData(val any) interface{} {
 
 func (m *PostgresMapper) isDataType(val any, pref string) bool {
 	return strings.HasSuffix(strings.ToLower(reflect.TypeOf(val).String()), strings.ToLower(pref))
+}
+
+func (m *PostgresMapper) getCastType(field reflect.StructField) string {
+	// UUID
+	if dtype := strings.ToLower(field.Tag.Get("datatype")); dtype == "uuid" {
+		return "::UUID"
+	}
+
+	// ENUM
+	if field.Tag.Get("enum") != "" {
+		return "::" + field.Tag.Get("enum")
+	}
+
+	// CAST TYPE
+	typeCasts := map[string]string{
+		"int":            "INTEGER",
+		"float":          "DECIMAL",
+		"bool":           "BOOLEAN",
+		"time":           "TIMESTAMP",
+		"pq.stringarray": "TEXT[]",
+		"string":         "TEXT",
+	}
+
+	typeStr := strings.ToLower(field.Type.String())
+	for goType, pgType := range typeCasts {
+		if strings.Contains(typeStr, goType) {
+			return "::" + pgType
+		}
+	}
+
+	return ""
 }

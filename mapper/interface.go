@@ -7,4 +7,5 @@ type IMapper interface {
 	InsertMany(ctx context.Context, entities []Entity, tableName string) (string, []interface{}, error)
 
 	Update(ctx context.Context, entity Entity, tableName string) (string, []interface{}, error)
+	UpdateMany(ctx context.Context, entities []Entity, tableName string) (string, []interface{}, error)
 }
