@@ -8,4 +8,7 @@ type IMapper interface {
 
 	Update(ctx context.Context, entity Entity, tableName string) (string, []interface{}, error)
 	UpdateMany(ctx context.Context, entities []Entity, tableName string) (string, []interface{}, error)
+
+	SoftDelete(tableName string, args SoftDeleteFilter) string
+	HardDelete(tableName string, args SoftDeleteFilter) string
 }

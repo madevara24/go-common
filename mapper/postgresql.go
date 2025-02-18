@@ -21,6 +21,11 @@ func NewPostgresMapper() IMapper {
 	return &PostgresMapper{}
 }
 
+type SoftDeleteFilter struct {
+	Where     string
+	DeletedBy string
+}
+
 func (m *PostgresMapper) Insert(ctx context.Context, entity Entity, tableName string) (string, []interface{}, error) {
 	var primaryKey string
 	var insertQuery, insertValues string
@@ -220,6 +225,14 @@ func (m *PostgresMapper) UpdateMany(ctx context.Context, entities []Entity, tabl
 		strings.Join(fields, ",") + ")\n" + "WHERE " + strings.Join(primaryKeys, " AND ")
 
 	return query, data, nil
+}
+
+func (*PostgresMapper) SoftDelete(tableName string, args SoftDeleteFilter) string {
+	return fmt.Sprintf("UPDATE %s SET deleted_by = '%s', deleted_at = NOW() WHERE %s", tableName, args.DeletedBy, args.Where)
+}
+
+func (*PostgresMapper) HardDelete(tableName string, args SoftDeleteFilter) string {
+	return fmt.Sprintf("DELETE FROM %s WHERE %s", tableName, args.Where)
 }
 
 func (m *PostgresMapper) getFieldName(tag reflect.StructTag, quoted bool) string {
