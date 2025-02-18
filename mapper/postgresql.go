@@ -21,6 +21,13 @@ func NewPostgresMapper() IMapper {
 	return &PostgresMapper{}
 }
 
+type SearchFilter struct {
+	Where       string
+	OrderBy     string
+	Limit       int
+	Offset      int
+	IsForUpdate bool
+}
 type SoftDeleteFilter struct {
 	Where     string
 	DeletedBy string
@@ -227,6 +234,40 @@ func (m *PostgresMapper) UpdateMany(ctx context.Context, entities []Entity, tabl
 	return query, data, nil
 }
 
+func (m *PostgresMapper) Search(ctx context.Context, entity interface{}, tableName string, args SearchFilter) (string, error) {
+	fields, err := m.FieldSelectionBuilder(entity, tableName)
+	if err != nil {
+		return "", err
+	}
+
+	var query string
+	abbr := m.getTableAbbreviation(tableName)
+
+	query = fmt.Sprintf("SELECT %s FROM %s %s", fields, tableName, abbr)
+
+	if args.Where != "" {
+		query = query + " WHERE " + args.Where
+	}
+
+	if args.OrderBy != "" {
+		query = query + " ORDER BY " + args.OrderBy
+	}
+
+	if args.Limit != 0 {
+		query = query + " LIMIT " + strconv.Itoa(args.Limit)
+	}
+
+	if args.Offset != 0 {
+		query = query + " OFFSET " + strconv.Itoa(args.Offset)
+	}
+
+	if args.IsForUpdate {
+		query = query + " FOR UPDATE"
+	}
+
+	return query, nil
+}
+
 func (*PostgresMapper) SoftDelete(tableName string, args SoftDeleteFilter) string {
 	return fmt.Sprintf("UPDATE %s SET deleted_by = '%s', deleted_at = NOW() WHERE %s", tableName, args.DeletedBy, args.Where)
 }
@@ -296,4 +337,42 @@ func (m *PostgresMapper) getCastType(field reflect.StructField) string {
 	}
 
 	return ""
+}
+
+func (m *PostgresMapper) FieldSelectionBuilder(entity interface{}, tableName string) (string, error) {
+	val := reflect.Indirect(reflect.ValueOf(entity))
+	if val.Kind() != reflect.Struct {
+		return "", fmt.Errorf("entity must be a struct")
+	}
+
+	var fields string
+	abbr := m.getTableAbbreviation(tableName)
+
+	for i := 0; i < val.Type().NumField(); i++ {
+		field := val.Type().Field(i)
+		if field.Tag.Get("selectable") != "false" {
+			if fields != "" {
+				fields = fields + ","
+			}
+			fields = fields + abbr + "." + m.getFieldName(field.Tag, true)
+		}
+	}
+
+	return fields, nil
+}
+
+func (m *PostgresMapper) getTableAbbreviation(tableName string) string {
+	var abbr string
+
+	for _, part := range strings.Split(tableName, "_") {
+		if len(part) > 0 {
+			abbr = abbr + part[0:1]
+		}
+	}
+
+	if abbr == "" {
+		return "t"
+	}
+
+	return abbr
 }
