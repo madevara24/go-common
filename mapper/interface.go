@@ -3,6 +3,8 @@ package mapper
 import "context"
 
 type IMapper interface {
+	Search(ctx context.Context, entity interface{}, tableName string, args SearchFilter) (string, error)
+
 	Insert(ctx context.Context, entity Entity, tableName string) (string, []interface{}, error)
 	InsertMany(ctx context.Context, entities []Entity, tableName string) (string, []interface{}, error)
 
